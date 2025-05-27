@@ -31,7 +31,7 @@ def test_openai_provider():
         tool_calls, message = provider.generate_response(test_history, "gpt-4o-mini")
         assert message is not None, "No message returned"
         assert isinstance(message, str), "Message is not a string"
-        print(f"✅ Response generated successfully: {message[:100]}...")
+        print(f"✅ Response generated successfully: {message}...")
         return True
     except Exception as e:
         print(f"❌ Error generating response: {e}")

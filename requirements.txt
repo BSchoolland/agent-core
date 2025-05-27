@@ -1,0 +1,8 @@
+# Core dependencies for provider implementations
+openai>=1.0.0
+anthropic>=0.25.0
+ollama>=0.1.0
+google-genai>=1.0.0
+
+# Environment variable support
+python-dotenv>=1.0.0 

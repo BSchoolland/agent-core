@@ -25,6 +25,18 @@ class OpenAIProvider(Provider):
             self.client = OpenAI(api_key=self.API_KEY)
             self.ready = True
 
+    def list_models(self):
+        """List available models from OpenAI"""
+        if not self.ready:
+            return []
+        
+        try:
+            models = self.client.models.list()
+            return [model.id for model in models.data]
+        except Exception:
+            # Return empty list if API call fails
+            return []
+
     def generate_response(self, history, model):
         if not self.ready:
             raise Exception("OpenAI provider not ready. Please provide API key.")

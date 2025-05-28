@@ -25,6 +25,18 @@ class GoogleGeminiProvider(Provider):
             self.client = genai.Client(api_key=self.API_KEY)
             self.ready = True
 
+    def list_models(self):
+        """List available models from Google Gemini"""
+        if not self.ready:
+            return []
+        
+        try:
+            models = self.client.models.list()
+            return [model.name.replace('models/', '') for model in models]
+        except Exception:
+            # Return empty list if API call fails
+            return []
+
     def generate_response(self, history, model):
         if not self.ready:
             raise Exception("Google Gemini provider not ready. Please provide API key.")

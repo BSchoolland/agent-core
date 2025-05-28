@@ -33,5 +33,10 @@ class Provider(ABC):
     def tool_to_provider_format(self, tool):
         pass
 
+    # list available models from the provider
+    @abstractmethod
+    def list_models(self):
+        pass
+
     
 

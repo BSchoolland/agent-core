@@ -13,6 +13,18 @@ class OllamaProvider(Provider):
         # Ollama is ready by default for local usage
         self.ready = True
 
+    def list_models(self):
+        """List available models from Ollama"""
+        if not self.ready:
+            return []
+        
+        try:
+            models = ollama.list()
+            return [model['name'] for model in models['models']]
+        except Exception:
+            # Return empty list if API call fails
+            return []
+
     def generate_response(self, history, model):
         if not self.ready:
             raise Exception("Ollama provider not ready.")

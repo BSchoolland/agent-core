@@ -5,4 +5,7 @@ ollama>=0.1.0
 google-genai>=1.0.0
 
 # Environment variable support
-python-dotenv>=1.0.0 
+python-dotenv>=1.0.0
+
+# Package management
+setuptools>=45.0.0 

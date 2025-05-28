@@ -19,8 +19,10 @@ class OllamaProvider(Provider):
             return []
         
         try:
-            models = ollama.list()
-            return [model['name'] for model in models['models']]
+            response = self.client.list()
+            # The response is a ListResponse object with a models attribute
+            # Each model in the list has a .model attribute with the model name
+            return [model.model for model in response.models]
         except Exception:
             # Return empty list if API call fails
             return []

@@ -3,6 +3,7 @@ import os
 from dotenv import load_dotenv
 from anthropic import Anthropic
 from .providerClass import Provider
+import json
 
 # Load environment variables from .env file
 load_dotenv()
@@ -30,12 +31,14 @@ class AnthropicProvider(Provider):
         if not self.ready:
             return []
         
-        try:
-            models = self.client.models.list()
-            return [model.id for model in models.data]
-        except Exception:
-            # Return empty list if API call fails
-            return []
+        # Anthropic doesn't have a public models list API, so return known models
+        return [
+            "claude-3-5-haiku-20241022",
+            "claude-3-5-sonnet-20241022", 
+            "claude-3-opus-20240229",
+            "claude-3-sonnet-20240229",
+            "claude-3-haiku-20240307"
+        ]
 
     async def generate_response(self, history, model, mcp_client=None):
         if not self.ready:
@@ -64,28 +67,109 @@ class AnthropicProvider(Provider):
             
             if system_message:
                 kwargs["system"] = system_message
+                
+            # Add tools if available
+            tools = await self.tools_to_provider_format(mcp_client) if mcp_client else []
+            if tools:
+                kwargs["tools"] = tools
             
             response = self.client.messages.create(**kwargs)
             
-            message = response.content[0].text
-            tool_calls = None  # Not implementing tool calls yet
+            # Extract message content and tool calls
+            message_content = ""
+            tool_calls = []
             
-            return tool_calls, message
+            for content_block in response.content:
+                if content_block.type == "text":
+                    message_content += content_block.text
+                elif content_block.type == "tool_use":
+                    tool_calls.append({
+                        'id': content_block.id,
+                        'name': content_block.name,
+                        'parameters': json.dumps(content_block.input)
+                    })
+            
+            print('tool calls:', tool_calls)
+            return tool_calls, message_content
         except Exception as e:
             raise Exception(f"Anthropic API error: {str(e)}")
 
-    def history_to_provider_format(self, history):
-        # Anthropic uses the same format as OpenAI: [{"role": "system/user/assistant", "content": "..."}]
-        return history
+    def tool_calls_to_provider_format(self, tool_calls):
+        """Convert standard tool calls to Anthropic format"""
+        # Anthropic doesn't need this conversion in the same way as other providers
+        # Tool calls are handled in the content blocks
+        return tool_calls
 
-    def provider_to_std_history_format(self, provider_history):
-        # Anthropic format is the same as standard format
+    def history_to_provider_format(self, history):
+        """Convert history to Anthropic format"""
+        provider_history = []
+        for message in history:
+            if message.get('tool_calls'):
+                # For assistant messages with tool calls
+                content_blocks = []
+                
+                # Add text content if present
+                if message.get('content'):
+                    content_blocks.append({
+                        "type": "text",
+                        "text": message['content']
+                    })
+                
+                # Add tool use blocks
+                for tool_call in message['tool_calls']:
+                    parameters = tool_call['parameters']
+                    if isinstance(parameters, str):
+                        try:
+                            parameters = json.loads(parameters)
+                        except json.JSONDecodeError:
+                            parameters = {}
+                    
+                    content_blocks.append({
+                        "type": "tool_use",
+                        "id": tool_call['id'],
+                        "name": tool_call['name'],
+                        "input": parameters
+                    })
+                
+                formatted_message = {
+                    'role': message['role'],
+                    'content': content_blocks
+                }
+            elif message.get('role') == 'tool':
+                # Tool result messages
+                formatted_message = {
+                    'role': 'user',
+                    'content': [{
+                        "type": "tool_result",
+                        "tool_use_id": message['tool_call_id'],
+                        "content": str(message['content'])
+                    }]
+                }
+            else:
+                # Regular messages (system, user, assistant without tool calls)
+                formatted_message = message.copy()
+            
+            provider_history.append(formatted_message)
         return provider_history
 
-    def tool_to_provider_format(self, tool):
-        # Not implementing tool calls yet
-        return tool
+    def provider_to_std_history_format(self, provider_history):
+        """Convert Anthropic format to standard format"""
+        return provider_history
 
-    def tools_to_provider_format(self, mcp_client):
-        # Not implementing tool calls yet
-        return []
+    async def tools_to_provider_format(self, mcp_client):
+        """Convert MCP tools to Anthropic format"""
+        if mcp_client is None:
+            return []
+        
+        tools = await mcp_client.get_tools()
+        anthropic_tools = []
+        
+        for tool in tools:
+            anthropic_tool = {
+                "name": tool.name,
+                "description": tool.description or "No description provided",
+                "input_schema": tool.inputSchema
+            }
+            anthropic_tools.append(anthropic_tool)
+        
+        return anthropic_tools

@@ -11,7 +11,7 @@ class GoogleGeminiProvider(Provider):
     def __init__(self, API_KEY=None):
         super().__init__(API_KEY)
         if self.API_KEY is None:
-            self.API_KEY = os.getenv('GOOGLE_API_KEY')
+            self.API_KEY = os.getenv('GEMINI_API_KEY')
         
         if self.API_KEY:
             self.client = genai.Client(api_key=self.API_KEY)

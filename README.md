@@ -68,7 +68,7 @@ Set up your API keys.  You ONLY need to set the API keys for the providers you w
 ```bash
 export OPENAI_API_KEY="your-openai-api-key"
 export ANTHROPIC_API_KEY="your-anthropic-api-key"
-export GOOGLE_API_KEY="your-google-api-key"
+export GEMINI_API_KEY="your-google-api-key"
 # Ollama runs locally, no API key needed
 ```
 

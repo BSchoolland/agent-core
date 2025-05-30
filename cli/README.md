@@ -86,7 +86,7 @@ export OPENAI_API_KEY="your-openai-api-key"
 export ANTHROPIC_API_KEY="your-anthropic-api-key"
 
 # For Google Gemini
-export GOOGLE_API_KEY="your-google-api-key"
+export GEMINI_API_KEY="your-google-api-key"
 
 # Ollama runs locally, no API key needed
 ```

@@ -166,7 +166,7 @@ def _suggest_available_models():
         print("\nRequired environment variables:")
         print("  • OPENAI_API_KEY for OpenAI models")
         print("  • ANTHROPIC_API_KEY for Anthropic models") 
-        print("  • GOOGLE_API_KEY for Google Gemini models")
+        print("  • GEMINI_API_KEY for Google Gemini models")
         print("  • Ollama should be running locally for Ollama models")
     else:
         print(f"\n💡 Usage: agentcore run <model-name>")

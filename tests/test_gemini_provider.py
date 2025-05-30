@@ -11,7 +11,7 @@ def test_gemini_provider():
     provider = GoogleGeminiProvider()
     
     if not provider.ready:
-        print("❌ Google Gemini provider not ready - check GOOGLE_API_KEY in .env file")
+        print("❌ Google Gemini provider not ready - check GEMINI_API_KEY in .env file")
         return False
     
     print("✅ Google Gemini provider initialized successfully")

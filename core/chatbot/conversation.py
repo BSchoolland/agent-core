@@ -191,9 +191,14 @@ class Conversation:
                     print('TODO: implement a solution to handle simultaneous tool calls + assistant message.  Current implementation simply ignores the assistant message.')
 
                 for tool_call in tool_calls:
+                    # Handle both string (OpenAI) and dict (Gemini) parameter formats
+                    parameters = tool_call['parameters']
+                    if isinstance(parameters, str):
+                        parameters = json.loads(parameters)
+                    
                     result = await self.mcp_client.call_tool(
                         tool_call['name'],
-                        json.loads(tool_call['parameters'])
+                        parameters
                     )
 
                     # Append tool result message

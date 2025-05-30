@@ -45,66 +45,145 @@ class GoogleGeminiProvider(Provider):
         gemini_history = self.history_to_provider_format(history)
         
         try:
-            # Create a chat session
-            chat = self.client.chats.create(model=model)
+            # Get tools if MCP client is available
+            tools = await self.tools_to_provider_format(mcp_client) if mcp_client else []
             
-            # Send all messages in history except the last one
-            for msg in gemini_history[:-1]:
-                if msg["role"] == "user":
-                    chat.send_message(msg["content"])
-                elif msg["role"] == "assistant":
-                    # For assistant messages, we need to simulate the response
-                    pass
+            # Use generate_content instead of chat for better tool support
+            response = await self.client.aio.models.generate_content(
+                model=model,
+                contents=gemini_history,
+                config=genai.types.GenerateContentConfig(
+                    tools=tools,
+                    temperature=0
+                )
+            )
             
-            # Send the last message and get response
-            last_message = gemini_history[-1]
-            if last_message["role"] == "user":
-                response = chat.send_message(last_message["content"])
-                message = response.text
-            else:
-                # If last message is not from user, just return it
-                message = last_message["content"]
+            # Extract text content properly, handling function calls
+            message = None
+            if response.candidates and response.candidates[0].content.parts:
+                text_parts = []
+                for part in response.candidates[0].content.parts:
+                    if hasattr(part, 'text') and part.text:
+                        text_parts.append(part.text)
+                message = ''.join(text_parts) if text_parts else None
             
-            tool_calls = None  # Not implementing tool calls yet
+            tool_calls = self.provider_to_std_tool_calls_format(response.candidates[0].content.parts if response.candidates else [])
             
+            print('gemini tool calls:', tool_calls)
             return tool_calls, message
+            
         except Exception as e:
             raise Exception(f"Google Gemini API error: {str(e)}")
 
-    def history_to_provider_format(self, history): 
-        #FIXME: gemini actually accepts a history object and a separate system message, read the docs
-        # Convert standard format to Gemini format
-        # Gemini uses the same structure but may handle system messages differently
+    def tool_calls_to_provider_format(self, tool_calls):
+        """Convert standard tool calls to Gemini format"""
+        provider_tool_calls = []
+        for tool_call in tool_calls:
+            provider_tool_calls.append(genai.types.FunctionCall(
+                name=tool_call['name'],
+                args=tool_call['parameters']  # This should be a dict, not JSON string
+            ))
+        return provider_tool_calls
+
+    def history_to_provider_format(self, history):
+        """Convert standard history format to Gemini format"""
         gemini_history = []
+        system_instruction = None
         
         for msg in history:
             if msg["role"] == "system":
-                # Convert system message to user message with instruction prefix
-                gemini_history.append({
-                    "role": "user",
-                    "content": f"System instruction: {msg['content']}"
-                })
-            else:
-                gemini_history.append(msg)
+                # Gemini handles system messages separately
+                system_instruction = msg["content"]
+            elif msg["role"] == "user":
+                gemini_history.append(genai.types.Content(
+                    role="user",
+                    parts=[genai.types.Part(text=msg["content"])]
+                ))
+            elif msg["role"] == "assistant":
+                parts = []
+                if msg.get("content"):
+                    parts.append(genai.types.Part(text=msg["content"]))
+                
+                if msg.get("tool_calls"):
+                    for tool_call in msg["tool_calls"]:
+                        parts.append(genai.types.Part(
+                            function_call=genai.types.FunctionCall(
+                                name=tool_call["name"],
+                                args=tool_call["parameters"] if isinstance(tool_call["parameters"], dict) else {}
+                            )
+                        ))
+                
+                if parts:
+                    gemini_history.append(genai.types.Content(
+                        role="model",  # Gemini uses "model" instead of "assistant"
+                        parts=parts
+                    ))
+            elif msg["role"] == "tool":
+                # Tool response messages
+                gemini_history.append(genai.types.Content(
+                    role="function",
+                    parts=[genai.types.Part(
+                        function_response=genai.types.FunctionResponse(
+                            name=msg.get("tool_call_id", "unknown"),
+                            response={"result": str(msg["content"])}
+                        )
+                    )]
+                ))
+        
+        # Add system instruction if present
+        if system_instruction and gemini_history:
+            # Prepend system instruction to first user message
+            first_user_msg = None
+            for i, content in enumerate(gemini_history):
+                if content.role == "user":
+                    first_user_msg = i
+                    break
+            
+            if first_user_msg is not None:
+                original_text = gemini_history[first_user_msg].parts[0].text
+                gemini_history[first_user_msg] = genai.types.Content(
+                    role="user",
+                    parts=[genai.types.Part(text=f"System: {system_instruction}\n\nUser: {original_text}")]
+                )
         
         return gemini_history
 
     def provider_to_std_history_format(self, provider_history):
-        # Convert Gemini format back to standard format
-        standard_history = []
-        
-        for msg in provider_history:
-            if msg["role"] == "user" and msg["content"].startswith("System instruction: "):
-                # Convert back to system message
-                standard_history.append({
-                    "role": "system",
-                    "content": msg["content"][19:]  # Remove "System instruction: " prefix
-                })
-            else:
-                standard_history.append(msg)
-        
-        return standard_history
+        """Convert Gemini format back to standard format"""
+        # This is complex due to Gemini's structure, implementing basic version
+        return provider_history
 
-    def tools_to_provider_format(self, tool):
-        # Not implementing tool calls yet
-        return tool
+    def provider_to_std_tool_calls_format(self, parts):
+        """Convert Gemini function calls to standard format"""
+        tool_calls = []
+        
+        for part in parts:
+            if hasattr(part, 'function_call') and part.function_call:
+                func_call = part.function_call
+                tool_calls.append({
+                    'id': f"call_{func_call.name}_{len(tool_calls)}",  # Generate ID
+                    'name': func_call.name,
+                    'parameters': func_call.args if func_call.args else {}
+                })
+        
+        return tool_calls
+
+    async def tools_to_provider_format(self, mcp_client):
+        """Convert MCP tools to Gemini function declarations"""
+        if mcp_client is None:
+            return []
+        
+        tools = await mcp_client.get_tools()
+        gemini_tools = []
+        
+        for tool in tools:
+            function_declaration = genai.types.FunctionDeclaration(
+                name=tool.name,
+                description=tool.description or "No description provided",
+                parameters=tool.inputSchema
+            )
+            gemini_tools.append(genai.types.Tool(
+                function_declarations=[function_declaration]
+            ))
+        
+        return gemini_tools

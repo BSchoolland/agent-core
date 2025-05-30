@@ -37,7 +37,7 @@ class AnthropicProvider(Provider):
             # Return empty list if API call fails
             return []
 
-    def generate_response(self, history, model):
+    async def generate_response(self, history, model, mcp_client=None):
         if not self.ready:
             raise Exception("Anthropic provider not ready. Please provide API key.")
         
@@ -85,3 +85,7 @@ class AnthropicProvider(Provider):
     def tool_to_provider_format(self, tool):
         # Not implementing tool calls yet
         return tool
+
+    def tools_to_provider_format(self, mcp_client):
+        # Not implementing tool calls yet
+        return []

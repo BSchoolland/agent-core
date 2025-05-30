@@ -27,7 +27,7 @@ class OllamaProvider(Provider):
             # Return empty list if API call fails
             return []
 
-    def generate_response(self, history, model):
+    async def generate_response(self, history, model, mcp_client=None):
         if not self.ready:
             raise Exception("Ollama provider not ready.")
         
@@ -55,6 +55,6 @@ class OllamaProvider(Provider):
         # Ollama format is the same as standard format
         return provider_history
 
-    def tool_to_provider_format(self, tool):
+    def tools_to_provider_format(self, tool):
         # Not implementing tool calls yet
         return tool

@@ -15,7 +15,7 @@ class Provider(ABC):
 
     # generate a response from the provider
     @abstractmethod
-    def generate_response(self, history, model):
+    async def generate_response(self, history, model, mcp_client=None):
         pass # will return tool calls and a message
 
     # convert standard history format to provider history format
@@ -30,7 +30,7 @@ class Provider(ABC):
 
     # convert tool information to a format that the provider can understand
     @abstractmethod
-    def tool_to_provider_format(self, tool):
+    def tools_to_provider_format(self, mcp_client):
         pass
 
     # list available models from the provider

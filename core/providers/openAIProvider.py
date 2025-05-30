@@ -37,7 +37,7 @@ class OpenAIProvider(Provider):
             # Return empty list if API call fails
             return []
 
-    def generate_response(self, history, model):
+    async def generate_response(self, history, model, mcp_client=None):
         if not self.ready:
             raise Exception("OpenAI provider not ready. Please provide API key.")
         
@@ -45,9 +45,11 @@ class OpenAIProvider(Provider):
         openai_history = self.history_to_provider_format(history)
         
         try:
+            tools = await self.tools_to_provider_format(mcp_client) if mcp_client else []
             response = self.client.chat.completions.create(
                 model=model,
-                messages=openai_history
+                messages=openai_history,
+                tools=tools
             )
             
             message = response.choices[0].message.content
@@ -56,6 +58,7 @@ class OpenAIProvider(Provider):
             return tool_calls, message
         except Exception as e:
             raise Exception(f"OpenAI API error: {str(e)}")
+        
 
     def history_to_provider_format(self, history):
         # OpenAI format is already the standard format: [{"role": "system/user/assistant", "content": "..."}]
@@ -65,6 +68,11 @@ class OpenAIProvider(Provider):
         # OpenAI format is already the standard format
         return provider_history
 
-    def tool_to_provider_format(self, tool):
+    async def tools_to_provider_format(self, mcp_client):
         # Not implementing tool calls yet
-        return tool
+        if mcp_client is None:
+            return []
+        tools = await mcp_client.get_tools()
+        print('tools look like:', tools)
+        # TODO: convert tools to OpenAI format
+        return []  # Return empty list for now since tools aren't fully implemented

@@ -37,7 +37,7 @@ class GoogleGeminiProvider(Provider):
             # Return empty list if API call fails
             return []
 
-    def generate_response(self, history, model):
+    async def generate_response(self, history, model, mcp_client=None):
         if not self.ready:
             raise Exception("Google Gemini provider not ready. Please provide API key.")
         
@@ -71,7 +71,8 @@ class GoogleGeminiProvider(Provider):
         except Exception as e:
             raise Exception(f"Google Gemini API error: {str(e)}")
 
-    def history_to_provider_format(self, history):
+    def history_to_provider_format(self, history): 
+        #FIXME: gemini actually accepts a history object and a separate system message, read the docs
         # Convert standard format to Gemini format
         # Gemini uses the same structure but may handle system messages differently
         gemini_history = []
@@ -104,6 +105,6 @@ class GoogleGeminiProvider(Provider):
         
         return standard_history
 
-    def tool_to_provider_format(self, tool):
+    def tools_to_provider_format(self, tool):
         # Not implementing tool calls yet
         return tool

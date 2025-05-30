@@ -1,5 +1,11 @@
 from mcp.server.fastmcp import FastMCP
 import asyncio
+import logging
+
+# Silence FastMCP debug messages
+logging.getLogger("mcp").setLevel(logging.WARNING)
+logging.getLogger("fastmcp").setLevel(logging.WARNING)
+logging.getLogger().setLevel(logging.WARNING)
 
 # Create an example MCP server
 mcp = FastMCP("Basic Math Tools")

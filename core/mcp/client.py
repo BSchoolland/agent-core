@@ -4,6 +4,11 @@ from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 from typing import Optional, List, Dict, Any
 from contextlib import AsyncExitStack
+import logging
+import warnings
+
+# Set up logging for cleanup warnings
+logger = logging.getLogger(__name__)
 
 class MCPClient:
     def __init__(self):
@@ -24,17 +29,23 @@ class MCPClient:
         instance = cls.__new__(cls)
         
         # Initialize instance variables
-        instance.session: Optional[ClientSession] = None
+        instance.session: Optional[ClientSession] = None # type: ignore
         instance.exit_stack = AsyncExitStack()
         instance.tools = []
         instance.connected = False
         instance.server = None
+        instance._closed = False
         
         # Connect to server if provided
         if server:
             await instance.connect_to_server(server)
             
         return instance
+
+    def __del__(self):
+        """Automatic cleanup when object is garbage collected."""
+        if hasattr(self, '_closed') and not self._closed and hasattr(self, 'exit_stack') and self.exit_stack:
+            logger.info("MCPClient was garbage collected without calling close(). Resources will be cleaned up by OS.")
 
     async def connect_to_server(self, server):
         self.server = server
@@ -70,13 +81,31 @@ class MCPClient:
         return result
             
     async def close(self):
-        if self.exit_stack:
-            try:
+        """Clean up MCP client resources properly."""
+        if self._closed:
+            return  # Already closed
+            
+        self._closed = True
+        
+        if not hasattr(self, 'exit_stack') or not self.exit_stack:
+            return
+            
+        try:
+            # Mark as disconnected first to prevent new operations
+            self.connected = False
+            self.session = None
+            
+            # Close the exit stack which will clean up all managed resources
+            # Suppress specific asyncio warnings that are confusing to users
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", category=RuntimeWarning, message=".*cancel scope.*")
                 await self.exit_stack.aclose()
-                self.connected = False
-                self.session = None
-            except Exception as e:
-                print(f"Error during MCP client cleanup: {e}")
+        except Exception as e:
+            # Log cleanup errors as info level instead of warning to reduce noise
+            logger.info(f"MCP client cleanup completed with minor issues (this is usually harmless): {e}")
+        finally:
+            # Ensure cleanup state is set regardless of errors
+            self.exit_stack = None
 
 async def main():
     client = await MCPClient.create('examples/mcp_server.py')

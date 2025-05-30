@@ -5,6 +5,12 @@ from core.providers.googleGeminiProvider import GoogleGeminiProvider
 from core.providers.ollamaProvider import OllamaProvider
 from core.providers.openAIProvider import OpenAIProvider
 from core.mcp.client import MCPClient
+import asyncio
+import logging
+import json
+
+# Set up logging for cleanup warnings
+logger = logging.getLogger(__name__)
 
 class Conversation:
     def __init__(self):
@@ -29,6 +35,7 @@ class Conversation:
         
         # Initialize instance variables
         instance.model = kwargs.get('model')
+        instance._closed = False
         
         # Handle provider - can be string name or provider instance
         provider_param = kwargs.get('provider')
@@ -54,6 +61,53 @@ class Conversation:
             instance.mcp_client = None
             
         return instance
+
+    def __del__(self):
+        """Automatic cleanup when object is garbage collected."""
+        if hasattr(self, '_closed') and not self._closed and hasattr(self, 'mcp_client') and self.mcp_client:
+            # Log a helpful warning instead of failing silently
+            logger.warning(
+                "Conversation was garbage collected without calling close(). "
+                "For best practices, call 'await conversation.close()' when done. "
+                "Attempting automatic cleanup..."
+            )
+            # Try to schedule cleanup, but don't fail if event loop is closed
+            try:
+                loop = asyncio.get_event_loop()
+                if loop.is_running():
+                    # Schedule cleanup for next iteration
+                    loop.create_task(self._safe_close())
+                else:
+                    # Event loop is not running, can't do async cleanup
+                    logger.info("Event loop not running, skipping async cleanup")
+            except RuntimeError:
+                # No event loop available, that's okay
+                logger.info("No event loop available for cleanup, resources will be cleaned up by OS")
+
+    async def _safe_close(self):
+        """Internal method for safe cleanup that won't raise exceptions."""
+        try:
+            await self.close()
+        except Exception as e:
+            logger.warning(f"Error during automatic cleanup: {e}")
+
+    async def __aenter__(self):
+        """Async context manager entry."""
+        return self
+    
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        """Async context manager exit with proper cleanup."""
+        await self.close()
+    
+    async def close(self):
+        """Clean up resources, especially MCP client connections."""
+        if self._closed:
+            return  # Already closed
+            
+        self._closed = True
+        if hasattr(self, 'mcp_client') and self.mcp_client:
+            await self.mcp_client.close()
+            self.mcp_client = None
 
     def _get_provider_by_name(self, provider_name: str):
         """
@@ -118,9 +172,40 @@ class Conversation:
 
 
     async def generate_response(self, message: str):
+        if self._closed:
+            raise RuntimeError("Cannot use conversation after it has been closed")
+
         self.history.append({'role': 'user', 'content': message})
-        tool_calls, message = await self.provider.generate_response(self.history, self.model, self.mcp_client)
-        self.history.append({'role': 'assistant', 'content': message})
-        return tool_calls, message
+
+        while True:
+            tool_calls, assistant_message = await self.provider.generate_response(self.history, self.model, self.mcp_client)
+
+            if tool_calls:
+                # Append the assistant's tool call message
+                self.history.append({
+                    'role': 'assistant',
+                    'content': assistant_message,
+                    'tool_calls': tool_calls
+                })
+                if assistant_message:
+                    print('TODO: implement a solution to handle simultaneous tool calls + assistant message.  Current implementation simply ignores the assistant message.')
+
+                for tool_call in tool_calls:
+                    result = await self.mcp_client.call_tool(
+                        tool_call['name'],
+                        json.loads(tool_call['parameters'])
+                    )
+
+                    # Append tool result message
+                    self.history.append({
+                        'role': 'tool',
+                        'tool_call_id': tool_call['id'],
+                        'content': result
+                    })
+            else:
+                # Final assistant message after tool calls
+                self.history.append({'role': 'assistant', 'content': assistant_message})
+                return assistant_message
+
     
     

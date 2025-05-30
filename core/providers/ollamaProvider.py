@@ -1,6 +1,7 @@
 # core/providers/ollamaProvider.py
 import ollama
 from .providerClass import Provider
+import json
 
 class OllamaProvider(Provider):
     def __init__(self, API_KEY=None):
@@ -35,26 +36,105 @@ class OllamaProvider(Provider):
         ollama_history = self.history_to_provider_format(history)
         
         try:
+            tools = await self.tools_to_provider_format(mcp_client) if mcp_client else []
+            
             response = self.client.chat(
                 model=model,
-                messages=ollama_history
+                messages=ollama_history,
+                tools=tools
             )
             
             message = response['message']['content']
-            tool_calls = None  # Not implementing tool calls yet
-            
+            tool_calls = self.provider_to_std_tool_calls_format(response['message'].get('tool_calls', []))
+            print('tool calls:', tool_calls)
             return tool_calls, message
         except Exception as e:
             raise Exception(f"Ollama API error: {str(e)}")
 
-    def history_to_provider_format(self, history):
-        # Ollama uses the same format as OpenAI: [{"role": "system/user/assistant", "content": "..."}]
-        return history
+    def tool_calls_to_provider_format(self, tool_calls):
+        """Convert standard tool calls to Ollama format"""
+        provider_tool_calls = []
+        for tool_call in tool_calls:
+            # Convert parameters from JSON string to dict if needed
+            parameters = tool_call['parameters']
+            if isinstance(parameters, str):
+                try:
+                    parameters = json.loads(parameters)
+                except json.JSONDecodeError:
+                    parameters = {}
+            
+            provider_tool_calls.append({
+                'function': {
+                    'name': tool_call['name'],
+                    'arguments': parameters
+                }
+            })
+        return provider_tool_calls
 
-    def provider_to_std_history_format(self, provider_history):
-        # Ollama format is the same as standard format
+    def history_to_provider_format(self, history):
+        """Convert history to Ollama format"""
+        provider_history = []
+        for message in history:
+            if message.get('tool_calls'):
+                # For assistant messages with tool calls
+                formatted_message = {
+                    'role': message['role'],
+                    'content': message['content'] or '',
+                    'tool_calls': self.tool_calls_to_provider_format(message['tool_calls'])
+                }
+            elif message.get('role') == 'tool':
+                # Tool messages need special formatting
+                formatted_message = {
+                    'role': 'tool',
+                    'content': str(message['content'])
+                }
+            else:
+                # Regular messages (system, user, assistant without tool calls)
+                formatted_message = message.copy()
+            
+            provider_history.append(formatted_message)
         return provider_history
 
-    def tools_to_provider_format(self, tool):
-        # Not implementing tool calls yet
-        return tool
+    def provider_to_std_history_format(self, provider_history):
+        """Convert Ollama format to standard format"""
+        return provider_history
+    
+    def provider_to_std_tool_calls_format(self, provider_tool_calls):
+        """Convert Ollama tool calls to standard format"""
+        if not provider_tool_calls:
+            return []
+            
+        tool_calls = []
+        for tool_call in provider_tool_calls:
+            # Convert arguments from dict to JSON string
+            arguments = tool_call['function']['arguments']
+            if isinstance(arguments, dict):
+                arguments = json.dumps(arguments)
+            
+            tool_calls.append({
+                'id': f"call_{hash(str(tool_call))}",  # Generate an ID since Ollama doesn't provide one
+                'parameters': arguments,
+                'name': tool_call['function']['name']
+            })
+        return tool_calls
+
+    async def tools_to_provider_format(self, mcp_client):
+        """Convert MCP tools to Ollama format"""
+        if mcp_client is None:
+            return []
+        
+        tools = await mcp_client.get_tools()
+        ollama_tools = []
+        
+        for tool in tools:
+            ollama_tool = {
+                "type": "function",
+                "function": {
+                    "name": tool.name,
+                    "description": tool.description or "No description provided",
+                    "parameters": tool.inputSchema
+                }
+            }
+            ollama_tools.append(ollama_tool)
+        
+        return ollama_tools

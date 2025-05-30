@@ -5,7 +5,7 @@ import asyncio
 async def main():
     conversation = await Conversation.create(
         model='devstral:latest',
-        # provider='openai',
+        provider='ollama',
         mcp_servers=['examples/mcp_server.py']
     )
     text = await conversation.generate_response('Test your add tool by adding 123 and 456 together.  If you have no such tool, warn me instead of trying to add manually.')

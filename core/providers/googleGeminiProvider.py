@@ -90,22 +90,45 @@ class GoogleGeminiProvider(Provider):
         gemini_history = []
         system_instruction = None
         
-        for msg in history:
+        # Keep track of function calls to match with responses
+        pending_function_calls = {}
+        current_function_responses = []
+        
+        for i, msg in enumerate(history):
             if msg["role"] == "system":
                 # Gemini handles system messages separately
                 system_instruction = msg["content"]
             elif msg["role"] == "user":
+                # If we have pending function responses, add them before the user message
+                if current_function_responses:
+                    gemini_history.append(genai.types.Content(
+                        role="function",
+                        parts=current_function_responses
+                    ))
+                    current_function_responses = []
+                
                 gemini_history.append(genai.types.Content(
                     role="user",
                     parts=[genai.types.Part(text=msg["content"])]
                 ))
             elif msg["role"] == "assistant":
+                # If we have pending function responses, add them before the assistant message
+                if current_function_responses:
+                    gemini_history.append(genai.types.Content(
+                        role="function",
+                        parts=current_function_responses
+                    ))
+                    current_function_responses = []
+                
                 parts = []
                 if msg.get("content"):
                     parts.append(genai.types.Part(text=msg["content"]))
                 
                 if msg.get("tool_calls"):
                     for tool_call in msg["tool_calls"]:
+                        # Store the mapping of tool_call_id to function name
+                        pending_function_calls[tool_call["id"]] = tool_call["name"]
+                        
                         parts.append(genai.types.Part(
                             function_call=genai.types.FunctionCall(
                                 name=tool_call["name"],
@@ -119,16 +142,37 @@ class GoogleGeminiProvider(Provider):
                         parts=parts
                     ))
             elif msg["role"] == "tool":
-                # Tool response messages
-                gemini_history.append(genai.types.Content(
-                    role="function",
-                    parts=[genai.types.Part(
-                        function_response=genai.types.FunctionResponse(
-                            name=msg.get("tool_call_id", "unknown"),
-                            response={"result": str(msg["content"])}
-                        )
-                    )]
+                # Tool response messages - collect them to group together
+                tool_call_id = msg.get("tool_call_id", "unknown")
+                function_name = pending_function_calls.get(tool_call_id, "unknown")
+                
+                # Extract content properly from CallToolResult objects
+                content = msg["content"]
+                if hasattr(content, 'content') and content.content:
+                    # Handle CallToolResult objects
+                    text_content = ""
+                    for content_item in content.content:
+                        if hasattr(content_item, 'text'):
+                            text_content += content_item.text
+                    result_text = text_content
+                else:
+                    # Handle string content
+                    result_text = str(content)
+                
+                # Add to current function responses
+                current_function_responses.append(genai.types.Part(
+                    function_response=genai.types.FunctionResponse(
+                        name=function_name,  # Use function name instead of tool_call_id
+                        response={"result": result_text}
+                    )
                 ))
+        
+        # Add any remaining function responses
+        if current_function_responses:
+            gemini_history.append(genai.types.Content(
+                role="function",
+                parts=current_function_responses
+            ))
         
         # Add system instruction if present
         if system_instruction and gemini_history:
@@ -156,6 +200,10 @@ class GoogleGeminiProvider(Provider):
     def provider_to_std_tool_calls_format(self, parts):
         """Convert Gemini function calls to standard format"""
         tool_calls = []
+        
+        # Handle None parts
+        if parts is None:
+            return tool_calls
         
         for part in parts:
             if hasattr(part, 'function_call') and part.function_call:

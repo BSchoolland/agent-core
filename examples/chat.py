@@ -8,7 +8,8 @@ async def main():
         provider='gemini',
         mcp_servers=['examples/mcp_server.py']
     )
-    text = await conversation.generate_response('Test your add tool by adding 123 and 456 together.  If you have no such tool, warn me instead of trying to add manually.')
+    await conversation.generate_response('Hello, how are you?')
+    await conversation.generate_response('Tell me a joke.')
     await conversation.close()
     return text
 if __name__ == '__main__':

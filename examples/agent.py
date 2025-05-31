@@ -4,9 +4,9 @@ import asyncio
 
 async def main():
     agent = await Agent.create(
-        model='gemini-1.5-flash', # great for testing because it has a free tier
+        model='gemini-2.0-flash', # great for testing because it has a free tier
         mcp_servers=['examples/mcp_server.py'],
-        type='react'
+        type='hybrid'
     )
     result = await agent.run("Generate 2 random numbers between 1-10, then add them together")
     await agent.close()
@@ -17,4 +17,5 @@ if __name__ == '__main__':
     print("Agent of type " + result['type'] + " completed with state " + result['state'] + " and error " + error_msg)
     print('want to see the history? (y/n)')
     if input() == 'y':
-        print(result['history'])
+        for msg in result['history']:
+            print(msg)

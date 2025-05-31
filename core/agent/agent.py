@@ -292,7 +292,7 @@ class Agent:
     async def plan(self):
         # Pass MCP client but instruct not to use tools
         self.history.append({
-            'role': 'system', 
+            'role': 'user', 
             'content': 'Create a plan for achieving the goal. Do NOT call any tools in this step - only provide a text-based plan.',
             'temporary': True
         })
@@ -305,7 +305,7 @@ class Agent:
     async def reason(self):
         logger.info("Starting reason step")
         self.history.append({
-            'role': 'system', 
+            'role': 'user', 
             'content': 'Think about your next action. Do NOT call any tools in this step - only provide your reasoning in text.',
             'temporary': True
         })
@@ -334,7 +334,7 @@ class Agent:
             raise RuntimeError(f"Agent failed to act after {fails + 1} attempts")
         
         self.history.append({
-            'role': 'system',
+            'role': 'user',
             'content': 'Perform an action by calling a tool',
             'temporary': True
         })
@@ -381,11 +381,16 @@ class Agent:
                         logger.error(f"Tool call parameters: {tool_call['parameters']}")
                         raise
             else:
+                self.history.append({
+                    'role': 'assistant',
+                    'content': assistant_message,
+                    'tool_calls': tool_calls
+                })
                 logger.warning("No tool calls returned from agent's act step. Trying again...")
                 logger.info(f"Instead of calling tools agent said: {assistant_message}")
                 # Final assistant message after tool calls
                 self.history.append({
-                    'role': 'system', 
+                    'role': 'user', 
                     'content': 'Response rejected: you MUST call a tool at this step.  Please try again.', 
                     'temporary': False
                     }) # not temporary because we want to make sure the agent remembers this failure
@@ -402,7 +407,7 @@ class Agent:
     async def check_completion(self):
         logger.info("Starting completion check")
         self.history.append({
-            'role': 'system',
+            'role': 'user',
             'content': 'Given the original goal, have you completed the entire task? Respond only "yes" or "no". Do NOT call any tools in this step.',
             'temporary': True
         })

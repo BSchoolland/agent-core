@@ -14,7 +14,7 @@ logging.getLogger("fastmcp").setLevel(logging.WARNING)
 logging.getLogger().setLevel(logging.WARNING)
 
 # Create an enhanced MCP server
-mcp = FastMCP("Enhanced Productivity Tools")
+mcp = FastMCP("Example MCP Server")
 
 # Math Tools
 @mcp.tool()

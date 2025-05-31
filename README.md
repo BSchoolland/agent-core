@@ -1,76 +1,70 @@
 # agent-core
-A framework for working with LLMs and creating agentic AI workflows compatible with MCP meant to replace my earlier ai-tools repo and power the v2v-chatbot-api, future AI projects, and work across both JavaScript and Python
+A framework for working with LLMs and creating agentic AI workflows compatible with [MCP](https://github.com/modelcontextprotocol) meant to replace my earlier ai-tools repo and power the v2v-chatbot-api, future AI projects, and work across both JavaScript and Python
 
 ## Features
 
-- 🤖 Multi-provider support (OpenAI, Anthropic, Google Gemini, Ollama)
-- 💬 Interactive CLI for chatting with models
-- 📝 Conversation management with history
-- 🛠️ Tool calling support
-- 🎯 MCP (Model Context Protocol) compatibility
+- 🎯 AI agents in fewer than 20 lines of code
+- 🛠️ Super easy MCP integration
+- 🤖 Near universal support (OpenAI, Anthropic, Google Gemini, Ollama)
+- 📝 Automatic conversation management with history
 
-## Quick Start
+## Usage
 
-### CLI Usage
+### 1. Clone the Repository
 
-Start chatting with any supported model:
-
-```bash
-# Make the CLI executable
-chmod +x agentcore
-
-# List available models
-./agentcore list
-
-# Chat with GPT-4o-mini
-./agentcore run gpt-4o-mini
-
-# Chat with Claude
-./agentcore run claude-3-sonnet-20240229
-
-# Chat with local Ollama model
-./agentcore run gemma3:1b-it-qat
-
-# Use a custom system prompt
-./agentcore run gpt-4.1-mini --system-prompt "You are a helpful coding assistant"
+``` bash
+git clone https://github.com/BSchoolland/agent-core.git
+cd agent-core
 ```
 
-### Programmatic Usage
+### 2. Environment Setup
 
-```python
-from core.chatbot.conversation import Conversation
+Copy .env.example to a new file called .env and replace any of the three API keys with your actual key (which you'll need to obtain from the provider).  
 
-# Create a conversation
-conversation = Conversation(
-    model="gpt-4o-mini",
-    system_prompt="You are a helpful assistant"
-)
-
-# Generate a response
-tool_calls, response = conversation.generate_response("Hello!")
-print(response)
+``` bash
+cp .env.example .env
 ```
 
-## Installation
+For this example I'll use Gemini because as of June 2025 thir API has a free tier and obtaining an API key is super simple provided you have a Google account.
 
+### 3. Installation
+
+Set up a virtual environment
 ```bash
-# Install dependencies
+python3 -m venv venv
+source venv/bin/activate
+```
+
+Install dependancies
+``` bash
 pip install -r requirements.txt
 
 # For CLI usage (optional)
 pip install -e .
 ```
 
-## Environment Setup
+### 4. Use AI Agents
 
-Set up your API keys.  You ONLY need to set the API keys for the providers you want to use, so if you want to use Ollama, you can skip this step entirely.
+``` python
+from core.agent.agent import Agent
+import asyncio
 
-```bash
-export OPENAI_API_KEY="your-openai-api-key"
-export ANTHROPIC_API_KEY="your-anthropic-api-key"
-export GEMINI_API_KEY="your-google-api-key"
-# Ollama runs locally, no API key needed
+async def main():
+    agent = await Agent.create(
+        model='gemini-2.0-flash', # any valid model name you have access to
+        mcp_servers=['examples/mcp_server.py']
+    )
+    await agent.run("Generate 2 random numbers between 1-100, add them together and save the result in a file called 'result.txt'")
+    await agent.close()
+
+if __name__ == '__main__':
+    asyncio.run(main())
 ```
+
+
+### 5. Profit
+
+Claim your agents can replace all workers in 6 months and raise millions of dollars using pure AI hype.
 
 ## Local model setup (optional)
 
@@ -82,21 +76,8 @@ A model must be installed through the Ollama CLI before it can be used with agen
 
 - [CLI Documentation](cli/README.md) - Detailed CLI usage and examples
 - [Core Documentation](core/) - Framework internals and API reference
-- [Examples](examples/) - Code examples for library usage
-
-## Examples
-
-Run the example script to see library usage:
-
-```bash
-python3 examples/basic_usage.py
-```
-
-This demonstrates:
-- Simple conversations with automatic provider detection
-- Using specific providers
-- Multi-turn conversations with context
-- Listing available models programmatically
+- [Examples](examples/) - Code examples for library usage and sample MCP server
+- [FastMCP](https://github.com/jlowin/fastmcp) - Suggested framework for building MCP servers.  Note that you don't *have* to use this, you can use any MCP server you want.  I just think this is nice and easy.
 
 ## Supported Models
 
@@ -105,6 +86,12 @@ The framework automatically detects which models are actually available from eac
 - **OpenAI**: All available models (gpt-4o, gpt-4o-mini, o1, etc.)
 - **Anthropic**: All available Claude models (claude-3-5-sonnet, claude-3-haiku, etc.)
 - **Google**: All available Gemini models (gemini-2.5-pro, gemini-2.5-flash, etc.)
-- **Ollama**: Any and all locally installed models available through the Ollama CLI, from Meta, Google, DeepSeek, etc.
+- **Ollama**: All locally installed models available through the Ollama CLI, from Meta, Google, DeepSeek, etc.
 
-Use `./agentcore list` to see exactly which models are available on your system right now.
+Use `./agentcore list` to see exactly which models are available to your system right now.
+
+## Roadmap
+- Make this avalible as a python package
+- CLI support for agents
+- Multi-MCP server support, right now it's a one at a time thing
+- Release as an npm package using a js wrapper

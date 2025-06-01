@@ -1,3 +1,4 @@
+import subprocess
 from mcp.server.fastmcp import FastMCP
 import asyncio
 import logging
@@ -15,6 +16,34 @@ logging.getLogger().setLevel(logging.WARNING)
 
 # Create an enhanced MCP server
 mcp = FastMCP("Example MCP Server")
+
+# Base directory for all file operations
+TESTING_DIR = os.path.join(os.getcwd(), "testing")
+
+def ensure_testing_dir():
+    """Ensure the testing directory exists"""
+    if not os.path.exists(TESTING_DIR):
+        os.makedirs(TESTING_DIR)
+
+def get_safe_path(filename: str) -> str:
+    """Get a safe path within the testing directory"""
+    ensure_testing_dir()
+    # Remove any path traversal attempts and join with testing dir
+    safe_filename = os.path.basename(filename)
+    return os.path.join(TESTING_DIR, safe_filename)
+
+def get_safe_directory_path(directory: str = ".") -> str:
+    """Get a safe directory path within the testing directory"""
+    ensure_testing_dir()
+    if directory == "." or directory == "":
+        return TESTING_DIR
+    # Remove any path traversal attempts
+    safe_dir = os.path.basename(directory)
+    full_path = os.path.join(TESTING_DIR, safe_dir)
+    # Ensure the directory exists
+    if not os.path.exists(full_path):
+        os.makedirs(full_path)
+    return full_path
 
 # Math Tools
 @mcp.tool()
@@ -56,22 +85,24 @@ def factorial(n: int) -> int:
         result *= i
     return result
 
-# File Operations
+# File Operations (all within /testing directory)
 @mcp.tool()
 def write_file(filename: str, content: str) -> str:
-    """Write content to a file"""
+    """Write content to a file in the testing directory"""
     try:
-        with open(filename, 'w') as f:
+        safe_path = get_safe_path(filename)
+        with open(safe_path, 'w') as f:
             f.write(content)
-        return f"Successfully wrote to {filename}"
+        return f"Successfully wrote to {os.path.relpath(safe_path, TESTING_DIR)} in testing directory"
     except Exception as e:
         return f"Error writing to file: {str(e)}"
 
 @mcp.tool()
 def read_file(filename: str) -> str:
-    """Read content from a file"""
+    """Read content from a file in the testing directory"""
     try:
-        with open(filename, 'r') as f:
+        safe_path = get_safe_path(filename)
+        with open(safe_path, 'r') as f:
             content = f.read()
         return content
     except Exception as e:
@@ -79,17 +110,19 @@ def read_file(filename: str) -> str:
 
 @mcp.tool()
 def list_files(directory: str = ".") -> str:
-    """List files in a directory"""
+    """List files in a directory within the testing directory"""
     try:
-        files = os.listdir(directory)
+        safe_dir = get_safe_directory_path(directory)
+        files = os.listdir(safe_dir)
         return json.dumps(files, indent=2)
     except Exception as e:
         return f"Error listing files: {str(e)}"
 
 @mcp.tool()
 def file_exists(filename: str) -> bool:
-    """Check if a file exists"""
-    return os.path.exists(filename)
+    """Check if a file exists in the testing directory"""
+    safe_path = get_safe_path(filename)
+    return os.path.exists(safe_path)
 
 
 # Utility Tools

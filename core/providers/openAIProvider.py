@@ -54,7 +54,6 @@ class OpenAIProvider(Provider):
             
             message = response.choices[0].message.content
             tool_calls = self.provider_to_std_tool_calls_format(response.choices[0].message.tool_calls or [])
-            print('tool calls:', tool_calls)
             return tool_calls, message
         except Exception as e:
             raise Exception(f"OpenAI API error: {str(e)}")

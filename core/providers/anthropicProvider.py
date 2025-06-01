@@ -101,7 +101,6 @@ class AnthropicProvider(Provider):
                         'parameters': json.dumps(content_block.input)
                     })
             
-            print('tool calls:', tool_calls)
             return tool_calls, message_content
         except Exception as e:
             raise Exception(f"Anthropic API error: {str(e)}")

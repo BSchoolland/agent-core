@@ -8,5 +8,8 @@ mcp>=1.9.1
 # Environment variable support
 python-dotenv>=1.0.0
 
+# Terminal enhancement
+rich>=13.0.0
+
 # Package management
 setuptools>=45.0.0 

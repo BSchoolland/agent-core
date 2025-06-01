@@ -79,6 +79,35 @@ A model must be installed through the Ollama CLI before it can be used with agen
 - [Examples](examples/) - Code examples for library usage and sample MCP server
 - [FastMCP](https://github.com/jlowin/fastmcp) - Suggested framework for building MCP servers.  Note that you don't *have* to use this, you can use any MCP server you want.  I just think this is nice and easy.
 
+## In depth documentation
+So far, I've gone over only the basics.  The below lists all the options and features these classes support.
+
+### Agent
+Parameters:
+- `model`: The model to use for the agent.  Can be any model from OpenAI, Anthropic, Google, or huggingface through Ollama.
+- `provider`: The provider to use for the agent.  Can be `openai`, `anthropic`, `google`, or `ollama`.  If this is not specified, the framework will attempt to automatically detect the provider based on the model name.
+- `max_steps`: The maximum number of act steps the agent will take before automatically failing.  This defaults to 15 to prevent infinite loops, and does not include planning or reasoning steps.
+- `mcp_servers`: A list of MCP servers to use for the agent.  Can be any MCP server you want.
+- `type`: The type of agent to create the types are as follows:
+    - `react`: Follows the pattern reason->act->reason->act->... until the goal is complete.  This is the default setting and is great for most tasks.
+    - `planner`: Follows the pattern plan->act->act->act->... until the goal is complete.  This is ideal for relatively straight forward tasks that the agent can make a complete plan for before starting.
+    - `hybrid`: Follows the pattern plan->reason->act->reason->act->... until the goal is complete.  Think of this as a hybrid of the `react` and `planner` types.  It takes the longest to run and requires the most tokens but can be better than plain `react` for well defined yet complex tasks.
+    - `simple`: Follows the pattern act->act->act... until the goal is complete.  This tends to be less accurate but is faster and cheaper for simple tasks.
+
+Methods:
+- `run(goal: str)`: Run the agent with the given goal.
+- `close()`: Close the agent.
+
+### Conversation
+Parameters:
+- `model`: The model to use for the conversation.  Can be any model from OpenAI, Anthropic, Google, or huggingface through Ollama.
+- `provider`: The provider to use for the conversation.  Can be `openai`, `anthropic`, `google`, or `ollama`.  If this is not specified, the framework will attempt to automatically detect the provider based on the model name.
+
+Methods:
+- `generate_response(message: str)`: Generate a response to the given message.
+- `close()`: Close the conversation.
+
+
 ## Supported Models
 
 The framework automatically detects which models are actually available from each provider:

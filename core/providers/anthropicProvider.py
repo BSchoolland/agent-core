@@ -31,14 +31,26 @@ class AnthropicProvider(Provider):
         if not self.ready:
             return []
         
-        # Anthropic doesn't have a public models list API, so return known models
-        return [
-            "claude-3-5-haiku-20241022",
-            "claude-3-5-sonnet-20241022", 
-            "claude-3-opus-20240229",
-            "claude-3-sonnet-20240229",
-            "claude-3-haiku-20240307"
-        ]
+        try:
+            # Use the Anthropic API to get the list of models
+            response = self.client.models.list()
+            
+            # Extract model IDs from the response
+            models = []
+            for model in response.data:
+                models.append(model.id)
+            
+            return models
+        except Exception as e:
+            print(f"Error fetching models from Anthropic API: {str(e)}")
+            # Fallback to a basic list of known models if API call fails
+            return [
+                "claude-3-5-haiku-20241022",
+                "claude-3-5-sonnet-20241022", 
+                "claude-3-opus-20240229",
+                "claude-3-sonnet-20240229",
+                "claude-3-haiku-20240307"
+            ]
 
     async def generate_response(self, history, model, mcp_client=None):
         if not self.ready:

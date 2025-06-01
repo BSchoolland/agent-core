@@ -37,6 +37,7 @@ class Agent:
             provider: The provider to use (optional, will be inferred if not provided)
             system_prompt: System prompt for the conversation (optional)
             mcp_servers: List of MCP servers to connect to (optional)
+            max_steps: Maximum number of act steps before throwing an error (default: 10)
         
         Returns:
             Agent: Initialized agent instance
@@ -47,6 +48,8 @@ class Agent:
         # Initialize instance variables
         instance.model = kwargs.get('model')
         instance._closed = False
+        instance.max_steps = kwargs.get('max_steps', 10)
+        instance.act_step_count = 0  # Track number of act steps
         
         # Handle provider - can be string name or provider instance
         provider_param = kwargs.get('provider')
@@ -196,6 +199,7 @@ class Agent:
 
     def setGoal(self, goal: str):
         self.goal = goal
+        self.act_step_count = 0  # Reset act step counter for new goal
         self.history.append({'role': 'user', 'content': f"Your goal is: {goal}"})
 
     # run method, overwritted by .create() based on agent type
@@ -210,9 +214,9 @@ class Agent:
             while state == AGENT_STATE_WORKING:
                 await self.act()
                 state = await self.check_completion()
-            return {'history': self.history, 'state': state, 'type': 'simple'}
+            return {'history': self.history, 'state': state, 'type': 'simple', 'steps': self.act_step_count}
         except Exception as e:
-            return {'history': self.history, 'state': AGENT_STATE_FAILED, 'error': str(e), 'type': 'simple'}
+            return {'history': self.history, 'state': AGENT_STATE_FAILED, 'error': str(e), 'type': 'simple', 'steps': self.act_step_count}
 
     # ReAct run achitecture, used by ReAct agents
     async def react_run(self, goal: str):
@@ -220,41 +224,34 @@ class Agent:
             logger.info(f"Starting ReAct run with goal: {goal}")
             self.setGoal(goal)
             state = AGENT_STATE_WORKING
-            step_count = 0
-            max_steps = 20  # Prevent infinite loops
             
-            while state == AGENT_STATE_WORKING and step_count < max_steps:
-                step_count += 1
-                logger.info(f"ReAct step {step_count}: Starting reason phase")
+            while state == AGENT_STATE_WORKING:
+                logger.info(f"ReAct step {self.act_step_count + 1}: Starting reason phase")
                 try:
                     await self.reason()
-                    logger.info(f"ReAct step {step_count}: Reason phase completed")
+                    logger.info(f"ReAct step {self.act_step_count}: Reason phase completed")
                 except Exception as e:
-                    logger.error(f"ReAct step {step_count}: Error in reason phase: {str(e)}")
+                    logger.error(f"ReAct step {self.act_step_count}: Error in reason phase: {str(e)}")
                     logger.error(f"Traceback: {traceback.format_exc()}")
                     raise
                 
-                logger.info(f"ReAct step {step_count}: Starting act phase")
+                logger.info(f"ReAct step {self.act_step_count + 1}: Starting act phase")
                 try:
                     await self.act()
-                    logger.info(f"ReAct step {step_count}: Act phase completed")
+                    logger.info(f"ReAct step {self.act_step_count}: Act phase completed")
                 except Exception as e:
-                    logger.error(f"ReAct step {step_count}: Error in act phase: {str(e)}")
+                    logger.error(f"ReAct step {self.act_step_count}: Error in act phase: {str(e)}")
                     logger.error(f"Traceback: {traceback.format_exc()}")
                     raise
                 
-                logger.info(f"ReAct step {step_count}: Checking completion")
+                logger.info(f"ReAct step {self.act_step_count}: Checking completion")
                 try:
                     state = await self.check_completion()
-                    logger.info(f"ReAct step {step_count}: Completion check result: {state}")
+                    logger.info(f"ReAct step {self.act_step_count}: Completion check result: {state}")
                 except Exception as e:
-                    logger.error(f"ReAct step {step_count}: Error in completion check: {str(e)}")
+                    logger.error(f"ReAct step {self.act_step_count}: Error in completion check: {str(e)}")
                     logger.error(f"Traceback: {traceback.format_exc()}")
                     raise
-            
-            if step_count >= max_steps:
-                logger.warning(f"ReAct agent reached maximum steps ({max_steps})")
-                state = AGENT_STATE_FAILED
                 
             logger.info(f"ReAct run completed with state: {state}")
             return {'history': self.history, 'state': state, 'type': 'react'}
@@ -330,10 +327,36 @@ class Agent:
 
     # the act step, used by all agents
     async def act(self, fails = 0):
-        logger.info(f"Starting act step (attempt {fails + 1})")
+        # Increment and check act step count
+        self.act_step_count += 1
+        if self.act_step_count > self.max_steps:
+            logger.error(f"Agent exceeded maximum steps ({self.max_steps}) for goal: {self.goal}")
+            raise RuntimeError(
+                f"Agent exceeded maximum number of steps ({self.max_steps}) while trying to complete the task: '{self.goal}'. "
+                "This may indicate an infinite loop or a task that is too complex for the current configuration. "
+                "Consider increasing max_steps, using a more powerful model, or breaking down the task into smaller parts."
+            )
+        
+        logger.info(f"Starting act step {self.act_step_count}/{self.max_steps} (attempt {fails + 1})")
         if fails > 2:  # Increased from 0 to 2 for better debugging
             logger.error(f"Agent failed to act after {fails + 1} attempts")
             raise RuntimeError(f"Agent failed to act after {fails + 1} attempts")
+        
+        # Check if we have any tools available before attempting to act
+        available_tools = []
+        if self.mcp_client:
+            try:
+                available_tools = await self.mcp_client.get_tools()
+            except Exception as e:
+                logger.warning(f"Could not get available tools: {str(e)}")
+        
+        if not available_tools:
+            logger.error("No tools available for the agent to use")
+            raise RuntimeError(
+                f"Cannot complete the task '{self.goal}' because no tools are available. "
+                "The agent needs tools to perform actions. Please ensure MCP servers are "
+                "properly configured and connected, or provide the necessary tools for this task."
+            )
         
         self.history.append({
             'role': 'user',
@@ -383,13 +406,15 @@ class Agent:
                         logger.error(f"Tool call parameters: {tool_call['parameters']}")
                         raise
             else:
+                # Don't add empty tool_calls to history as it causes API errors
+                # Instead, add a regular assistant message and provide feedback
                 self.history.append({
                     'role': 'assistant',
-                    'content': assistant_message,
-                    'tool_calls': tool_calls
+                    'content': assistant_message
                 })
                 logger.warning("No tool calls returned from agent's act step. Trying again...")
                 logger.info(f"Instead of calling tools agent said: {assistant_message}")
+                
                 # Final assistant message after tool calls
                 self.history.append({
                     'role': 'user', 
@@ -410,7 +435,7 @@ class Agent:
         logger.info("Starting completion check")
         self.history.append({
             'role': 'user',
-            'content': 'Given the original goal: "' + self.goal + '" Have you completed the ENTIRE task? Respond only "yes" or "no". Do NOT call any tools in this step.',
+            'content': 'Given the original goal: "' + self.goal + '" Have you completed the ENTIRE task? Respond only "yes", "not yet", or "error: Agent says this task is not possible because <reason>". Do NOT call any tools in this step.',
             'temporary': True
         })
         logger.info(f"Added completion check prompt to history for goal: {self.goal}")
@@ -426,8 +451,13 @@ class Agent:
             if response and 'yes' in response.lower():
                 logger.info("Task marked as complete")
                 return AGENT_STATE_SUCCESS
-            else:
+            elif response and 'not yet' in response.lower():
                 logger.info("Task not yet complete, continuing")
+                return AGENT_STATE_WORKING
+            elif response and 'error' in response.lower():
+                raise Exception(response)
+            else:
+                logger.warning("Completion check response not understood, continuing I guess")
                 return AGENT_STATE_WORKING
         except Exception as e:
             logger.error(f"Error in completion check: {str(e)}")

@@ -117,10 +117,26 @@ The framework automatically detects which models are actually available from eac
 - **Google**: All available Gemini models (gemini-2.5-pro, gemini-2.5-flash, etc.)
 - **Ollama**: All locally installed models available through the Ollama CLI, from Meta, Google, DeepSeek, etc.
 
-Use `./agentcore list` to see exactly which models are available to your system right now.
+Use `agentcore list` to see exactly which models are available to your system right now.
+
+## CLI Usage
+
+The CLI provides easy access to both chat and agent functionality:
+
+```bash
+# Interactive chat with a model
+agentcore chat gpt-4o-mini
+
+# Run an agent with a specific goal
+agentcore agent gpt-4o-mini "Generate 2 random numbers and save to file"
+
+# List available models
+agentcore list
+```
+
+See the [CLI Documentation](cli/README.md) for detailed usage instructions.
 
 ## Roadmap
-- Make this avalible as a python package
-- CLI support for agents
+- Make this available as a python package
 - Multi-MCP server support, right now it's a one at a time thing
 - Release as an npm package using a js wrapper

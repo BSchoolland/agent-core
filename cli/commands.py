@@ -4,6 +4,7 @@ Command implementations for the CLI.
 
 import sys
 import os
+import asyncio
 from typing import Optional
 import concurrent.futures
 
@@ -11,9 +12,10 @@ import concurrent.futures
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 from core.chatbot.conversation import Conversation
+from core.agent.agent import Agent
 
 
-def run_command(args):
+def chat_command(args):
     """
     Start an interactive chat session with the specified model.
     
@@ -32,57 +34,147 @@ def run_command(args):
     print("💬 Type 'quit', 'exit', or press Ctrl+C to end the session")
     print("-" * 50)
     
-    try:
-        # Initialize conversation
-        conversation_kwargs = {
-            'model': model,
-            'system_prompt': system_prompt
-        }
-        if provider:
-            conversation_kwargs['provider'] = _get_provider_instance(provider)
+    async def run_chat():
+        try:
+            # Initialize conversation
+            conversation_kwargs = {
+                'model': model,
+                'system_prompt': system_prompt
+            }
+            if provider:
+                conversation_kwargs['provider'] = provider
+                
+            conversation = await Conversation.create(**conversation_kwargs)
             
-        conversation = Conversation(**conversation_kwargs)
-        
-        # Start interactive loop
-        while True:
-            try:
-                user_input = input("\n👤 You: ").strip()
-                
-                if user_input.lower() in ['quit', 'exit', 'q']:
-                    print("👋 Goodbye!")
+            # Start interactive loop
+            while True:
+                try:
+                    user_input = input("\n👤 You: ").strip()
+                    
+                    if user_input.lower() in ['quit', 'exit', 'q']:
+                        print("👋 Goodbye!")
+                        break
+                    
+                    if not user_input:
+                        continue
+                    
+                    print("🤔 Thinking...")
+                    
+                    # Generate response
+                    response = await conversation.generate_response(user_input)
+                    
+                    # Display response
+                    print(f"\n🤖 {model}: {response}")
+                    
+                except EOFError:
+                    print("\n👋 Goodbye!")
                     break
-                
-                if not user_input:
+                except Exception as e:
+                    print(f"\n❌ Error generating response: {e}")
                     continue
+            
+            await conversation.close()
+                    
+        except ValueError as e:
+            print(f"❌ Model error: {e}")
+            _suggest_available_models()
+            sys.exit(1)
+        except Exception as e:
+            print(f"❌ Failed to initialize conversation: {e}")
+            sys.exit(1)
+    
+    # Run the async function
+    try:
+        asyncio.run(run_chat())
+    except KeyboardInterrupt:
+        print("\n👋 Goodbye!")
+        sys.exit(0)
+
+
+def agent_command(args):
+    """
+    Run an AI agent with a specific goal.
+    
+    Args:
+        args: Parsed command line arguments containing model, goal, system_prompt, provider, type, and mcp_servers
+    """
+    model = args.model
+    goal = args.goal
+    system_prompt = args.system_prompt
+    provider = args.provider
+    agent_type = args.type
+    mcp_servers = args.mcp_servers
+    
+    print(f"🤖 Starting {agent_type} agent with {model}")
+    print(f"🎯 Goal: {goal}")
+    if system_prompt:
+        print(f"📝 System prompt: {system_prompt}")
+    if provider:
+        print(f"🔧 Using provider: {provider}")
+    if mcp_servers:
+        print(f"🛠️ MCP servers: {', '.join(mcp_servers)}")
+    print("-" * 50)
+    
+    async def run_agent():
+        try:
+            # Initialize agent
+            agent_kwargs = {
+                'model': model,
+                'type': agent_type,
+                'system_prompt': system_prompt
+            }
+            if provider:
+                agent_kwargs['provider'] = provider
+            if mcp_servers:
+                agent_kwargs['mcp_servers'] = mcp_servers
                 
-                print("🤔 Thinking...")
-                
-                # Generate response
-                tool_calls, response = conversation.generate_response(user_input)
-                
-                # Display response
-                print(f"\n🤖 {model}: {response}")
-                
-                # Display tool calls if any
-                if tool_calls:
-                    print(f"\n🔧 Tool calls made: {len(tool_calls)}")
-                    for i, tool_call in enumerate(tool_calls, 1):
-                        print(f"  {i}. {tool_call.get('function', {}).get('name', 'Unknown tool')}")
-                
-            except EOFError:
-                print("\n👋 Goodbye!")
-                break
-            except Exception as e:
-                print(f"\n❌ Error generating response: {e}")
-                continue
-                
-    except ValueError as e:
-        print(f"❌ Model error: {e}")
-        _suggest_available_models()
-        sys.exit(1)
-    except Exception as e:
-        print(f"❌ Failed to initialize conversation: {e}")
-        sys.exit(1)
+            agent = await Agent.create(**agent_kwargs)
+            
+            print("🚀 Agent started, working on goal...")
+            
+            # Run the agent
+            result = await agent.run(goal)
+            
+            # Display results
+            print("\n" + "="*50)
+            print("🏁 Agent completed!")
+            print(f"📊 Status: {result['state']}")
+            print(f"🔧 Agent type: {result['type']}")
+            
+            if result['state'] == 'success':
+                print("✅ Goal achieved successfully!")
+            elif result['state'] == 'failed':
+                print("❌ Agent failed to complete the goal")
+                if 'error' in result:
+                    print(f"💥 Error: {result['error']}")
+            
+            # Show conversation history summary
+            history = result.get('history', [])
+            user_messages = [msg for msg in history if msg.get('role') == 'user' and not msg.get('temporary')]
+            assistant_messages = [msg for msg in history if msg.get('role') == 'assistant']
+            tool_messages = [msg for msg in history if msg.get('role') == 'tool']
+            
+            print(f"\n📈 Summary:")
+            print(f"  • User messages: {len(user_messages)}")
+            print(f"  • Assistant messages: {len(assistant_messages)}")
+            print(f"  • Tool calls: {len(tool_messages)}")
+            
+            await agent.close()
+            
+        except ValueError as e:
+            print(f"❌ Model error: {e}")
+            _suggest_available_models()
+            sys.exit(1)
+        except Exception as e:
+            print(f"❌ Failed to run agent: {e}")
+            sys.exit(1)
+    
+    # Run the async function
+    try:
+        asyncio.run(run_agent())
+    except KeyboardInterrupt:
+        print("\n🛑 Agent interrupted by user")
+        sys.exit(0)
 
 
 def list_command(args):
@@ -169,7 +261,9 @@ def _suggest_available_models():
         print("  • GEMINI_API_KEY for Google Gemini models")
         print("  • Ollama should be running locally for Ollama models")
     else:
-        print(f"\n💡 Usage: agentcore run <model-name>")
+        print(f"\n💡 Usage:")
+        print(f"  agentcore chat <model-name>")
+        print(f"  agentcore agent <model-name> \"<goal>\"")
         
         # Show some example commands with actual available models
         examples = []
@@ -177,9 +271,10 @@ def _suggest_available_models():
             if models:
                 # Pick the first model as an example
                 example_model = sorted(models)[0]
-                examples.append(f"agentcore run {example_model}")
+                examples.append(f"agentcore chat {example_model}")
+                examples.append(f"agentcore agent {example_model} \"Generate a random number and save it to a file\"")
         
         if examples:
             print(f"\n📝 Examples:")
-            for example in examples[:3]:  # Show max 3 examples
+            for example in examples[:4]:  # Show max 4 examples
                 print(f"  {example}") 

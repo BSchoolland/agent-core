@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """
 Development executable for agent-core CLI.
-Run this script directly during development: ./agentcore run gpt-4o-mini
+Run this script directly during development: 
+  ./agentcore chat gpt-4o-mini
+  ./agentcore agent gpt-4o-mini "your goal here"
 """
 
 import sys

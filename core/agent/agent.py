@@ -13,7 +13,7 @@ import traceback
 # Set up logging for cleanup warnings
 logger = logging.getLogger(__name__)
 # Set up more detailed logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.ERROR, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
 
 # possible states for an agent
@@ -38,6 +38,7 @@ class Agent:
             system_prompt: System prompt for the conversation (optional)
             mcp_servers: List of MCP servers to connect to (optional)
             max_steps: Maximum number of act steps before throwing an error (default: 10)
+            callback: Optional callback function that receives (type, message, tool_calls) for each agent action
         
         Returns:
             Agent: Initialized agent instance
@@ -50,6 +51,7 @@ class Agent:
         instance._closed = False
         instance.max_steps = kwargs.get('max_steps', 10)
         instance.act_step_count = 0  # Track number of act steps
+        instance.callback = kwargs.get('callback')  # Store callback function
         
         # Handle provider - can be string name or provider instance
         provider_param = kwargs.get('provider')
@@ -299,6 +301,9 @@ class Agent:
         tool_calls, plan = await self.provider.generate_response(self.history, self.model, self.mcp_client) 
         self.history.append({'role': 'assistant', 'content': plan})
         self.remove_temporary_messages()
+        
+        # Invoke callback for planning
+        await self._invoke_callback('planning', plan, tool_calls)
 
     # the reason step, used by ReAct and Hybrid agents
     async def reason(self):
@@ -320,6 +325,9 @@ class Agent:
             self.history.append({'role': 'assistant', 'content': reason})
             self.remove_temporary_messages()
             logger.info("Reason step completed successfully")
+            
+            # Invoke callback for reasoning
+            await self._invoke_callback('reasoning', reason, tool_calls)
         except Exception as e:
             logger.error(f"Error in reason step: {str(e)}")
             logger.error(f"Traceback: {traceback.format_exc()}")
@@ -381,6 +389,9 @@ class Agent:
                 })
                 if assistant_message:
                     logger.warning('TODO: implement a solution to handle simultaneous tool calls + assistant message.  Current implementation simply ignores the assistant message.')
+
+                # Invoke callback for acting (tool calls)
+                await self._invoke_callback('acting', assistant_message, tool_calls)
 
                 for i, tool_call in enumerate(tool_calls):
                     logger.info(f"Executing tool call {i+1}/{len(tool_calls)}: {tool_call['name']}")
@@ -467,6 +478,17 @@ class Agent:
     def remove_temporary_messages(self):
         # remove all temporary messages from the history
         self.history = [message for message in self.history if not message.get('temporary', False)]
+    
+    async def _invoke_callback(self, action_type: str, message: str, tool_calls: list = None):
+        """Helper method to safely invoke the callback if it exists"""
+        if self.callback:
+            try:
+                if asyncio.iscoroutinefunction(self.callback):
+                    await self.callback(action_type, message, tool_calls or [])
+                else:
+                    self.callback(action_type, message, tool_calls or [])
+            except Exception as e:
+                logger.warning(f"Callback error: {e}")
     
     
     

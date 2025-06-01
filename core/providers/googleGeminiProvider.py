@@ -69,7 +69,6 @@ class GoogleGeminiProvider(Provider):
             
             tool_calls = self.provider_to_std_tool_calls_format(response.candidates[0].content.parts if response.candidates else [])
             
-            print('gemini tool calls:', tool_calls)
             return tool_calls, message
             
         except Exception as e:

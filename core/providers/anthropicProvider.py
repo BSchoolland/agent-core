@@ -159,7 +159,14 @@ class AnthropicProvider(Provider):
                 }
             else:
                 # Regular messages (system, user, assistant without tool calls)
-                formatted_message = message.copy()
+                # Only include standard fields that Anthropic API accepts
+                formatted_message = {
+                    'role': message['role'],
+                    'content': message['content']
+                }
+                # Add any other standard fields if they exist
+                if 'name' in message:
+                    formatted_message['name'] = message['name']
             
             provider_history.append(formatted_message)
         return provider_history

@@ -1,4 +1,5 @@
 # core/providers/ollamaProvider.py
+import re
 import ollama
 from .providerClass import Provider
 import json
@@ -41,15 +42,28 @@ class OllamaProvider(Provider):
             response = self.client.chat(
                 model=model,
                 messages=ollama_history,
-                tools=tools
+                tools=tools,
+                options={
+                    'num_ctx': 32768  # Increase context window from default 2048 to 32768 tokens
+                }
             )
             
             message = response['message']['content']
+            # filter out thinking in messages.  <think>thoughts</think>
+            think, message = self.filter_thinking(message)
             tool_calls = self.provider_to_std_tool_calls_format(response['message'].get('tool_calls', []))
             print('tool calls:', tool_calls)
             return tool_calls, message
         except Exception as e:
             raise Exception(f"Ollama API error: {str(e)}")
+
+    def filter_thinking(self, message): #TODO: the think seems to be cut off a bit, but this does work for now
+        """Filter out thinking in messages.  <think>thoughts</think>"""
+        think = re.search(r'<think>(.*?)</think>', message, re.DOTALL)
+        if think:
+            message = re.sub(r'<think>.*?</think>', '', message, flags=re.DOTALL)
+        return think, message
+
 
     def tool_calls_to_provider_format(self, tool_calls):
         """Convert standard tool calls to Ollama format"""

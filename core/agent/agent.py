@@ -82,6 +82,7 @@ class Agent:
             instance.run = instance.simple_run
         else:
             raise ValueError(f"Unknown agent type: {type} (must be one of 'react', 'planner', 'hybrid', 'simple')")
+        instance.goal = kwargs.get('goal') or None
         return instance
 
     def __del__(self):
@@ -194,6 +195,7 @@ class Agent:
 
 
     def setGoal(self, goal: str):
+        self.goal = goal
         self.history.append({'role': 'user', 'content': f"Your goal is: {goal}"})
 
     # run method, overwritted by .create() based on agent type
@@ -408,10 +410,10 @@ class Agent:
         logger.info("Starting completion check")
         self.history.append({
             'role': 'user',
-            'content': 'Given the original goal, have you completed the entire task? Respond only "yes" or "no". Do NOT call any tools in this step.',
+            'content': 'Given the original goal: "' + self.goal + '" Have you completed the ENTIRE task? Respond only "yes" or "no". Do NOT call any tools in this step.',
             'temporary': True
         })
-        logger.info("Added completion check prompt to history")
+        logger.info(f"Added completion check prompt to history for goal: {self.goal}")
         
         try:
             # Pass MCP client but instruct not to use tools
@@ -421,7 +423,6 @@ class Agent:
             
             # we don't need to add this to the context because it's not relevant to the model's thought and action process
             self.remove_temporary_messages()
-            
             if response and 'yes' in response.lower():
                 logger.info("Task marked as complete")
                 return AGENT_STATE_SUCCESS

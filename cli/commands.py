@@ -11,8 +11,8 @@ import concurrent.futures
 # Add the parent directory to the path so we can import from core
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
-from core.chatbot.conversation import Conversation
-from core.agent.agent import Agent
+from agent_core.chatbot.conversation import Conversation
+from agent_core.agent.agent import Agent
 
 
 def chat_command(args):
@@ -185,10 +185,10 @@ def list_command(args):
 
 def _get_provider_instance(provider_name: str):
     """Get a provider instance by name."""
-    from core.providers.anthropicProvider import AnthropicProvider
-    from core.providers.googleGeminiProvider import GoogleGeminiProvider
-    from core.providers.ollamaProvider import OllamaProvider
-    from core.providers.openAIProvider import OpenAIProvider
+    from agent_core.providers.anthropicProvider import AnthropicProvider
+    from agent_core.providers.googleGeminiProvider import GoogleGeminiProvider
+    from agent_core.providers.ollamaProvider import OllamaProvider
+    from agent_core.providers.openAIProvider import OpenAIProvider
     
     providers = {
         'openai': OpenAIProvider(),
@@ -206,10 +206,10 @@ def _get_provider_instance(provider_name: str):
 
 def _suggest_available_models():
     """Dynamically fetch and suggest available models from all providers."""
-    from core.providers.anthropicProvider import AnthropicProvider
-    from core.providers.googleGeminiProvider import GoogleGeminiProvider
-    from core.providers.ollamaProvider import OllamaProvider
-    from core.providers.openAIProvider import OpenAIProvider
+    from agent_core.providers.anthropicProvider import AnthropicProvider
+    from agent_core.providers.googleGeminiProvider import GoogleGeminiProvider
+    from agent_core.providers.ollamaProvider import OllamaProvider
+    from agent_core.providers.openAIProvider import OpenAIProvider
     
     # Initialize all providers
     providers = {

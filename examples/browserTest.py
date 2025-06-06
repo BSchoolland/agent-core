@@ -1,5 +1,5 @@
 # Screenshot agent - navigates to a visually interesting website and captures it
-from core.agent.agent import Agent
+from agent_core.agent.agent import Agent
 import asyncio
 
 async def main():

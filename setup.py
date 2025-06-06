@@ -6,9 +6,9 @@ Setup script for agent-core library.
 from setuptools import setup, find_packages
 import os
 
-# Read version from core/__init__.py
+# Read version from agent_core/__init__.py
 def get_version():
-    version_file = os.path.join(os.path.dirname(__file__), 'core', '__init__.py')
+    version_file = os.path.join(os.path.dirname(__file__), 'agent_core', '__init__.py')
     with open(version_file, 'r', encoding='utf-8') as f:
         for line in f:
             if line.startswith('__version__'):

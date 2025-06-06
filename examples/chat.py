@@ -1,5 +1,5 @@
 # quick chat example with an mcp server and gemini provider
-from core.chatbot.conversation import Conversation
+from agent_core.chatbot.conversation import Conversation
 import asyncio
 
 async def main():

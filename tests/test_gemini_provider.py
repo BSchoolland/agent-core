@@ -2,7 +2,7 @@ import sys
 import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
-from core.providers.googleGeminiProvider import GoogleGeminiProvider
+from agent_core.providers.googleGeminiProvider import GoogleGeminiProvider
 
 def test_gemini_provider():
     print("Testing Google Gemini Provider...")

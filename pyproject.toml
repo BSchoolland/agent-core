@@ -57,10 +57,10 @@ Repository = "https://github.com/yourusername/agent-core"
 Issues = "https://github.com/yourusername/agent-core/issues"
 
 [tool.setuptools.dynamic]
-version = {attr = "core.__version__"}
+version = {attr = "agent_core.__version__"}
 
 [tool.setuptools.packages.find]
-include = ["core*", "cli*"]
+include = ["agent_core*", "cli*"]
 
 [tool.black]
 line-length = 88

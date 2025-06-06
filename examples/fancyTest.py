@@ -1,5 +1,5 @@
 # Enhanced chat example with beautiful terminal experience
-from core.agent.agent import Agent
+from agent_core.agent.agent import Agent
 import asyncio
 import time
 from rich.console import Console

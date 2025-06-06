@@ -1,5 +1,5 @@
 # quick chat example with an mcp server and gemini provider
-from core.agent.agent import Agent
+from agent_core import Agent
 import asyncio
 
 async def main():

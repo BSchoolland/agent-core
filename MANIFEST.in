@@ -4,7 +4,7 @@ include requirements.txt
 include pyproject.toml
 include example_usage.py
 recursive-include cli *.py *.md
-recursive-include core *.py
+recursive-include agent_core *.py
 recursive-include examples *.py
 recursive-exclude tests *
 recursive-exclude * __pycache__

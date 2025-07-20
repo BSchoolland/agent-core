@@ -2,7 +2,7 @@ import sys
 import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
-from core.providers.ollamaProvider import OllamaProvider
+from agent_core.providers.ollamaProvider import OllamaProvider
 
 def test_ollama_provider():
     print("Testing Ollama Provider...")

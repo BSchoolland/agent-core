@@ -1,10 +1,10 @@
 import concurrent.futures
 from difflib import get_close_matches
-from core.providers.anthropicProvider import AnthropicProvider
-from core.providers.googleGeminiProvider import GoogleGeminiProvider
-from core.providers.ollamaProvider import OllamaProvider
-from core.providers.openAIProvider import OpenAIProvider
-from core.mcp.client import MCPClient
+from agent_core.providers.anthropicProvider import AnthropicProvider
+from agent_core.providers.googleGeminiProvider import GoogleGeminiProvider
+from agent_core.providers.ollamaProvider import OllamaProvider
+from agent_core.providers.openAIProvider import OpenAIProvider
+from agent_core.mcp.client import MCPClient
 import asyncio
 import logging
 import json

@@ -7,46 +7,29 @@ A framework for working with LLMs and creating agentic AI workflows compatible w
 - 🛠️ Super easy MCP integration
 - 🤖 Near universal support (OpenAI, Anthropic, Google Gemini, Ollama)
 - 📝 Automatic conversation management with history
+- 📦 Available as a Python package for easy integration
 
-## Usage
+## Step 1: Installation
 
-### 1. Clone the Repository
+### Use as a Library in Your Project
 
-``` bash
-git clone https://github.com/BSchoolland/agent-core.git
-cd agent-core
+Add to your project's `requirements.txt`:
+
+```txt
+git+https://github.com/BSchoolland/agent-core.git
 ```
 
-### 2. Environment Setup
-
-Copy .env.example to a new file called .env and replace any of the three API keys with your actual key (which you'll need to obtain from the provider).  
-
-``` bash
-cp .env.example .env
-```
-
-For this example I'll use Gemini because as of June 2025 thir API has a free tier and obtaining an API key is super simple provided you have a Google account.
-
-### 3. Installation
-
-Set up a virtual environment
+Then install:
 ```bash
-python3 -m venv venv
-source venv/bin/activate
-```
-
-Install dependancies
-``` bash
 pip install -r requirements.txt
-
-# For CLI usage (optional)
-pip install -e .
 ```
 
-### 4. Use AI Agents
+## Step 2: Usage
+
+Take a look at the examples 
 
 ``` python
-from core.agent.agent import Agent
+from agent_core import Agent
 import asyncio
 
 async def main():
@@ -58,11 +41,10 @@ async def main():
     await agent.close()
 
 if __name__ == '__main__':
-    asyncio.run(main())
+asyncio.run(main())
 ```
 
-
-### 5. Profit
+### Step 3: Profit
 
 Claim your agents can replace all workers in 6 months and raise millions of dollars using pure AI hype.
 
@@ -72,10 +54,45 @@ Local models are managed through the Ollama CLI. See [ollama.com](https://ollama
 
 A model must be installed through the Ollama CLI before it can be used with agent-core.  You can install a model by running `ollama pull <model-name>` once Ollama is installed.
 
+## Development settup
+
+#### 1. Clone the Repository
+
+``` bash
+git clone https://github.com/BSchoolland/agent-core.git
+cd agent-core
+```
+
+#### 2. Environment Setup
+
+Copy .env.example to a new file called .env and replace any of the three API keys with your actual key (which you'll need to obtain from the provider).  
+
+``` bash
+cp .env.example .env
+```
+
+For this example I'll use Gemini because as of June 2025 their API has a free tier and obtaining an API key is super simple provided you have a Google account.
+
+#### 3. Installation
+
+Set up a virtual environment
+```bash
+python3 -m venv venv
+source venv/bin/activate
+```
+
+Install dependencies
+``` bash
+pip install -r requirements.txt
+
+# For CLI usage (optional)
+pip install -e .
+```
+
 ## Documentation
 
 - [CLI Documentation](cli/README.md) - Detailed CLI usage and examples
-- [Core Documentation](core/) - Framework internals and API reference
+- [Agent Core Documentation](agent_core/) - Framework internals and API reference
 - [Examples](examples/) - Code examples for library usage and sample MCP server
 - [FastMCP](https://github.com/jlowin/fastmcp) - Suggested framework for building MCP servers.  Note that you don't *have* to use this, you can use any MCP server you want.  I just think this is nice and easy.
 
@@ -86,7 +103,7 @@ So far, I've gone over only the basics.  The below lists all the options and fea
 Parameters:
 - `model`: The model to use for the agent.  Can be any model from OpenAI, Anthropic, Google, or huggingface through Ollama.
 - `provider`: The provider to use for the agent.  Can be `openai`, `anthropic`, `google`, or `ollama`.  If this is not specified, the framework will attempt to automatically detect the provider based on the model name.
-- `max_steps`: The maximum number of act steps the agent will take before automatically failing.  This defaults to 15 to prevent infinite loops, and does not include planning or reasoning steps.
+- `max_steps`: The maximum number of act steps the agent will take before automatically failing.  This defaults to 10 to prevent infinite loops, and does not include planning or reasoning steps.
 - `mcp_servers`: A list of MCP servers to use for the agent.  Can be any MCP server you want.
 - `type`: The type of agent to create the types are as follows:
     - `react`: Follows the pattern reason->act->reason->act->... until the goal is complete.  This is the default setting and is great for most tasks.
@@ -127,8 +144,7 @@ The CLI provides easy access to both chat and agent functionality:
 # Interactive chat with a model
 agentcore chat gpt-4o-mini
 
-# Run an agent with a specific goal
-agentcore agent gpt-4o-mini "Generate 2 random numbers and save to file"
+# TODO: run agents with MCP servers through the terminal
 
 # List available models
 agentcore list
@@ -137,6 +153,6 @@ agentcore list
 See the [CLI Documentation](cli/README.md) for detailed usage instructions.
 
 ## Roadmap
-- Make this available as a python package
 - Multi-MCP server support, right now it's a one at a time thing
 - Release as an npm package using a js wrapper
+- Publish to PyPI for easier installation

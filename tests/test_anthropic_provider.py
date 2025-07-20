@@ -2,7 +2,7 @@ import sys
 import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
-from core.providers.anthropicProvider import AnthropicProvider
+from agent_core.providers.anthropicProvider import AnthropicProvider
 
 def test_anthropic_provider():
     print("Testing Anthropic Provider...")

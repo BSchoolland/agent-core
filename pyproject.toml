@@ -1,0 +1,71 @@
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agent-core"
+dynamic = ["version"]
+description = "A Python library for building AI agents with various LLM providers and MCP support"
+readme = "README.md"
+license = {file = "LICENSE"}
+authors = [
+    {name = "Agent Core Team"},
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+keywords = ["ai", "agents", "llm", "openai", "anthropic", "gemini", "ollama", "mcp"]
+requires-python = ">=3.8"
+dependencies = [
+    "openai>=1.0.0",
+    "anthropic>=0.25.0",
+    "ollama>=0.1.0",
+    "google-genai>=1.0.0",
+    "mcp>=1.9.1",
+    "python-dotenv>=1.0.0",
+    "setuptools>=45.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.21.0",
+    "black>=22.0.0",
+    "flake8>=4.0.0",
+]
+cli = [
+    "rich>=13.0.0",
+]
+
+[project.scripts]
+agentcore = "cli.main:main"
+
+[project.urls]
+Homepage = "https://github.com/yourusername/agent-core"
+Repository = "https://github.com/yourusername/agent-core"
+Issues = "https://github.com/yourusername/agent-core/issues"
+
+[tool.setuptools.dynamic]
+version = {attr = "agent_core.__version__"}
+
+[tool.setuptools.packages.find]
+include = ["agent_core*", "cli*"]
+
+[tool.black]
+line-length = 88
+target-version = ['py38']
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"] 

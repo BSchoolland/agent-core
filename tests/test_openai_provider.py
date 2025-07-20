@@ -2,7 +2,7 @@ import sys
 import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
-from core.providers.openAIProvider import OpenAIProvider
+from agent_core.providers.openAIProvider import OpenAIProvider
 
 def test_openai_provider():
     print("Testing OpenAI Provider...")

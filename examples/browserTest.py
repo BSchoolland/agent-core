@@ -10,7 +10,7 @@ async def main():
     }
     
     agent = await Agent.create(
-        model='gpt-4.1',  # Actually, gpt-4.1 DOES exist!
+        model='gpt-4.1',
         mcp_servers=[playwright_server],
         type='react'
     )

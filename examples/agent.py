@@ -4,7 +4,7 @@ import asyncio
 
 async def main():
     agent = await Agent.create(
-        model='gemini-2.0-flash',
+        model='gpt-4o-mini',
         mcp_servers=['examples/mcp_server.py'],
         type='react'
     )

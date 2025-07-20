@@ -153,7 +153,7 @@ async def main():
     show_welcome()
     
     # Show task
-    task = "Read the file 'agent_docs.md' and then write a python script that would use 'examples/mcp_server.py' and 'gpt-4o-mini' to 'generate two random numbers between 1-100, add them together and save the result in a file called result.txt' it's okay/expected if mcp_server.py is not accessible from the testing directory."
+    task = "Read the file 'README.md' and then write a python script that would use 'examples/mcp_server.py' and 'gpt-4o-mini' to perform a simple task."
     show_task_start(task)
     
     # Create enhanced callback
